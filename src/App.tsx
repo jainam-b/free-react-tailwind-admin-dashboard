@@ -16,6 +16,7 @@ import Tables from './pages/Tables';
 import Alerts from './pages/UiElements/Alerts';
 import Buttons from './pages/UiElements/Buttons';
 import DefaultLayout from './layout/DefaultLayout';
+import ChartOne from './pages/Testing/ChartOne';
 
 function App() {
   const [loading, setLoading] = useState<boolean>(true);
@@ -34,6 +35,16 @@ function App() {
   ) : (
     <DefaultLayout>
       <Routes>
+
+      <Route
+          path="/test"
+          element={
+            <>
+              <PageTitle title="Tables | TailAdmin - Tailwind CSS Admin Dashboard Template" />
+              <ChartOne />
+            </>
+          }
+        />
         <Route
           index
           element={
