@@ -1,148 +1,93 @@
-import { ApexOptions } from 'apexcharts';
-import React, { useState } from 'react';
-import ReactApexChart from 'react-apexcharts';
-
-const options: ApexOptions = {
-  legend: {
-    show: false,
-    position: 'top',
-    horizontalAlign: 'left',
-  },
-  colors: ['#3C50E0', '#80CAEE'],
-  chart: {
-    fontFamily: 'Satoshi, sans-serif',
-    height: 335,
-    type: 'area',
-    dropShadow: {
-      enabled: true,
-      color: '#623CEA14',
-      top: 10,
-      blur: 4,
-      left: 0,
-      opacity: 0.1,
-    },
-
-    toolbar: {
-      show: false,
-    },
-  },
-  responsive: [
-    {
-      breakpoint: 1024,
-      options: {
-        chart: {
-          height: 300,
-        },
-      },
-    },
-    {
-      breakpoint: 1366,
-      options: {
-        chart: {
-          height: 350,
-        },
-      },
-    },
-  ],
-  stroke: {
-    width: [2, 2],
-    curve: 'straight',
-  },
-  // labels: {
-  //   show: false,
-  //   position: "top",
-  // },
-  grid: {
-    xaxis: {
-      lines: {
-        show: true,
-      },
-    },
-    yaxis: {
-      lines: {
-        show: true,
-      },
-    },
-  },
-  dataLabels: {
-    enabled: false,
-  },
-  markers: {
-    size: 4,
-    colors: '#fff',
-    strokeColors: ['#3056D3', '#80CAEE'],
-    strokeWidth: 3,
-    strokeOpacity: 0.9,
-    strokeDashArray: 0,
-    fillOpacity: 1,
-    discrete: [],
-    hover: {
-      size: undefined,
-      sizeOffset: 5,
-    },
-  },
-  xaxis: {
-    type: 'category',
-    categories: [
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-    ],
-    axisBorder: {
-      show: false,
-    },
-    axisTicks: {
-      show: false,
-    },
-  },
-  yaxis: {
-    title: {
-      style: {
-        fontSize: '0px',
-      },
-    },
-    min: 0,
-    max: 100,
-  },
-};
-
-interface ChartOneState {
-  series: {
-    name: string;
-    data: number[];
-  }[];
-}
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import * as d3 from 'd3';
 
 const ChartOne: React.FC = () => {
-  const [state, setState] = useState<ChartOneState>({
-    series: [
-      {
-        name: 'Product One',
-        data: [23, 11, 22, 27, 13, 22, 37, 21, 44, 22, 30, 45],
-      },
+  const [chartData, setChartData] = useState<any[]>([]);
 
-      {
-        name: 'Product Two',
-        data: [30, 25, 36, 30, 45, 35, 64, 52, 59, 36, 39, 51],
-      },
-    ],
-  });
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const handleReset = () => {
-    setState((prevState) => ({
-      ...prevState,
-    }));
+  const fetchData = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/data');
+      const apiData = response.data;
+
+      // Filter data based on intensity greater than or equal to 3
+      const filteredData = apiData.filter((item: any) => item.intensity >= 3);
+
+      // Transform filtered data for D3 chart
+      const transformedData = filteredData.map((item: any) => ({
+        name: item.title,
+        data: [item.intensity, item.relevance, item.likelihood], // Adjust based on your API data structure
+      }));
+
+      setChartData(transformedData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
   };
-  handleReset;
+
+  useEffect(() => {
+    if (chartData.length > 0) {
+      drawChart();
+    }
+  }, [chartData]);
+
+  const drawChart = () => {
+    const margin = { top: 20, right: 30, bottom: 30, left: 40 };
+    const width = 800 - margin.left - margin.right;
+    const height = 400 - margin.top - margin.bottom;
+
+    const svg = d3
+      .select('#chartOne')
+      .append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom)
+      .append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const x = d3
+      .scaleBand()
+      .domain(chartData.map((d) => d.name))
+      .range([0, width])
+      .padding(0.1);
+
+    const y = d3.scaleLinear().domain([0, 100]).range([height, 0]);
+
+    svg
+      .append('g')
+      .attr('transform', `translate(0,${height})`)
+      .call(d3.axisBottom(x));
+
+    svg.append('g').call(d3.axisLeft(y));
+
+    const line = d3
+      .line()
+      .x((d: any) => x(d.name) || 0)
+      .y((d: any) => y(d.data[0]) || 0);
+
+    svg
+      .append('path')
+      .datum(chartData)
+      .attr('fill', 'none')
+      .attr('stroke', '#3C50E0')
+      .attr('stroke-width', 2)
+      .attr('d', line);
+
+    const area = d3
+      .area()
+      .x((d: any) => x(d.name) || 0)
+      .y0(height)
+      .y1((d: any) => y(d.data[1]) || 0);
+
+    svg
+      .append('path')
+      .datum(chartData)
+      .attr('fill', '#80CAEE')
+      .attr('d', area);
+  };
 
   return (
     <div className="col-span-12 rounded-sm border border-stroke bg-white px-5 pt-7.5 pb-5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:col-span-8">
@@ -182,16 +127,7 @@ const ChartOne: React.FC = () => {
         </div>
       </div>
 
-      <div>
-        <div id="chartOne" className="-ml-5">
-          <ReactApexChart
-            options={options}
-            series={state.series}
-            type="area"
-            height={350}
-          />
-        </div>
-      </div>
+      <div id="chartOne"></div>
     </div>
   );
 };

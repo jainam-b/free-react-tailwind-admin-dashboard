@@ -1,102 +1,121 @@
-import { ApexOptions } from 'apexcharts';
-import React, { useState } from 'react';
-import ReactApexChart from 'react-apexcharts';
+import React, { useEffect, useRef, useState } from 'react';
+import * as d3 from 'd3';
 
-const options: ApexOptions = {
-  colors: ['#3C50E0', '#80CAEE'],
-  chart: {
-    fontFamily: 'Satoshi, sans-serif',
-    type: 'bar',
-    height: 335,
-    stacked: true,
-    toolbar: {
-      show: false,
-    },
-    zoom: {
-      enabled: false,
-    },
-  },
-
-  responsive: [
-    {
-      breakpoint: 1536,
-      options: {
-        plotOptions: {
-          bar: {
-            borderRadius: 0,
-            columnWidth: '25%',
-          },
-        },
-      },
-    },
-  ],
-  plotOptions: {
-    bar: {
-      horizontal: false,
-      borderRadius: 0,
-      columnWidth: '25%',
-      borderRadiusApplication: 'end',
-      borderRadiusWhenStacked: 'last',
-    },
-  },
-  dataLabels: {
-    enabled: false,
-  },
-
-  xaxis: {
-    categories: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
-  },
-  legend: {
-    position: 'top',
-    horizontalAlign: 'left',
-    fontFamily: 'Satoshi',
-    fontWeight: 500,
-    fontSize: '14px',
-
-    markers: {
-      radius: 99,
-    },
-  },
-  fill: {
-    opacity: 1,
-  },
-};
-
-interface ChartTwoState {
-  series: {
-    name: string;
-    data: number[];
-  }[];
+interface DataItem {
+  name: string;
+  data: number[];
 }
 
 const ChartTwo: React.FC = () => {
-  const [state, setState] = useState<ChartTwoState>({
-    series: [
-      {
-        name: 'Sales',
-        data: [44, 55, 41, 67, 22, 43, 65],
-      },
-      {
-        name: 'Revenue',
-        data: [13, 23, 20, 8, 13, 27, 15],
-      },
-    ],
-  });
-  
-  const handleReset = () => {
-    setState((prevState) => ({
-      ...prevState,
-    }));
-  };
-  handleReset;  
+  const [series, setSeries] = useState<DataItem[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+      
+        const simulatedData: DataItem[] = [
+          {
+            name: 'Sales',
+            data: [44, 55, 41, 67],
+          },
+          {
+            name: 'Revenue',
+            data: [13, 23, 20, 8],
+          },
+        ];
+        setSeries(simulatedData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    if (series.length > 0 && svgRef.current) {
+      const margin = { top: 20, right: 30, bottom: 40, left: 40 };
+      const width = 450 - margin.left - margin.right;
+      const height = 400 - margin.top - margin.bottom;
+
+      const svg = d3.select(svgRef.current);
+
+      svg.selectAll('*').remove(); // Clear previous content
+
+      const x = d3
+        .scaleBand()
+        .domain(series[0].data.map((_, i) => i.toString()))
+        .range([margin.left, width - margin.right])
+        .padding(0.1);
+
+      const y = d3
+        .scaleLinear()
+        .domain([0, d3.max(series.flatMap(s => s.data))!])
+        .nice()
+        .range([height - margin.bottom, margin.top]);
+
+      const color = d3.scaleOrdinal().range(['#3C50E0', '#80CAEE']);
+
+      const xAxis = g =>
+        g
+          .attr('transform', `translate(0,${height - margin.bottom})`)
+          .call(d3.axisBottom(x));
+
+      const yAxis = g =>
+        g
+          .attr('transform', `translate(${margin.left},0)`)
+          .call(d3.axisLeft(y).ticks(null, 's'));
+
+      svg.append('g').call(xAxis);
+
+      svg.append('g').call(yAxis);
+
+      const seriesGroup = svg.selectAll('.series').data(series).enter().append('g').attr('class', 'series');
+
+      seriesGroup
+        .selectAll('rect')
+        .data(d => d.data)
+        .enter()
+        .append('rect')
+        .attr('x', (d, i) => x(i.toString())!)
+        .attr('y', d => y(d))
+        .attr('width', x.bandwidth())
+        .attr('height', d => y(0) - y(d))
+        .attr('fill', (_, i) => color(i.toString()));
+
+      // Legend
+      const legend = svg
+        .append('g')
+        .attr('transform', `translate(${width - margin.right},${margin.top})`);
+
+    //   legend
+    //     .selectAll('text')
+    //     .data(series.map(d => d.name))
+    //     .enter()
+    //     .append('text')
+    //     .attr('y', (d, i) => i * 20)
+    //     .attr('fill', (_, i) => color(i.toString()))
+    //     .text(d => d);
+
+    //   legend
+    //     .selectAll('rect')
+    //     .data(series.map((_, i) => i))
+    //     .enter()
+    //     .append('rect')
+    //     .attr('y', (d, i) => i * 20 - 10)
+    //     .attr('width', 10)
+    //     .attr('height', 10)
+    //     .attr('fill', (_, i) => color(i.toString()));
+    }
+  }, [series]);
 
   return (
-    <div className="col-span-12 rounded-sm border border-stroke bg-white p-7.5 shadow-default dark:border-strokedark dark:bg-boxdark xl:col-span-4">
+    <div className="col-span-12 rounded-sm border border-stroke bg-white p-7.5 shadow-default dark:border-strokedark xl:col-span-4">
       <div className="mb-4 justify-between gap-4 sm:flex">
         <div>
-          <h4 className="text-xl font-semibold text-black dark:text-white">
-            Profit this week
-          </h4>
+          <h4 className="text-xl font-semibold text-black dark:text-white">Profit this week</h4>
         </div>
         <div>
           <div className="relative z-20 inline-block">
@@ -105,8 +124,12 @@ const ChartTwo: React.FC = () => {
               id="#"
               className="relative z-20 inline-flex appearance-none bg-transparent py-1 pl-3 pr-8 text-sm font-medium outline-none"
             >
-              <option value="" className='dark:bg-boxdark'>This Week</option>
-              <option value="" className='dark:bg-boxdark'>Last Week</option>
+              <option value="" className="dark:bg-boxdark">
+                This Week
+              </option>
+              <option value="" className="dark:bg-boxdark">
+                Last Week
+              </option>
             </select>
             <span className="absolute top-1/2 right-3 z-10 -translate-y-1/2">
               <svg
@@ -133,14 +156,7 @@ const ChartTwo: React.FC = () => {
       </div>
 
       <div>
-        <div id="chartTwo" className="-ml-5 -mb-9">
-          <ReactApexChart
-            options={options}
-            series={state.series}
-            type="bar"
-            height={350}
-          />
-        </div>
+        <svg ref={svgRef} width={500} height={400}></svg>
       </div>
     </div>
   );
